@@ -80,22 +80,6 @@
         [
           "lib_footprint_mismatch|127850000|95800000|13a15120-cbcd-4c73-8b8e-f17923dc1a52|00000000-0000-0000-0000-000000000000",
           ""
-        ],
-        [
-          "starved_thermal|132000000|77730000|2c2fb8e8-655f-4683-898c-1c72103e118e|ac5cd126-89cf-4e41-94b1-1a8f3284dc53|B.Cu",
-          ""
-        ],
-        [
-          "starved_thermal|135700000|98100000|2c2fb8e8-655f-4683-898c-1c72103e118e|896c8a81-c7d5-4bca-8e3f-4fd7d50d413e|B.Cu",
-          ""
-        ],
-        [
-          "starved_thermal|141500000|83040000|2c2fb8e8-655f-4683-898c-1c72103e118e|fe2269ce-1943-414b-9343-b80b8961bdc0|F.Cu",
-          ""
-        ],
-        [
-          "starved_thermal|147150000|118770000|2c2fb8e8-655f-4683-898c-1c72103e118e|07f95ef3-f4d6-4c05-a086-66f3e3cdbb71|F.Cu",
-          ""
         ]
       ],
       "meta": {
@@ -604,14 +588,32 @@
           "label": "Datasheet",
           "name": "Datasheet",
           "show": true
+        },
+        {
+          "group_by": false,
+          "label": "Sim.Pins",
+          "name": "Sim.Pins",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "Beschreibung",
+          "name": "Description",
+          "show": false
+        },
+        {
+          "group_by": false,
+          "label": "#",
+          "name": "${ITEM_NUMBER}",
+          "show": false
         }
       ],
       "filter_string": "",
       "group_symbols": true,
       "include_excluded_from_bom": true,
-      "name": "Default Editing",
+      "name": "",
       "sort_asc": true,
-      "sort_field": "Referenz"
+      "sort_field": "Reference"
     },
     "connection_grid_size": 50.0,
     "drawing": {
