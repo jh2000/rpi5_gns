@@ -47,6 +47,7 @@ dtoverlay=pps-gpio,gpiopin=26
 dtoverlay=uart1-pi5,ctsrts  
 dtoverlay=uart4-pi5  
 dtoverlay=uart5-pi5
+dtoverlay=pcf857x,addr=40
 ```
 **/etc/default/gpsd**
 ```
@@ -54,7 +55,7 @@ DEVICES="/dev/ttyAMA4 /dev/pps0"
 GPSD_OPTIONS="-s 9600 -n"
 ```
 
-**/etc/ntpsec/ntp.conf***
+**/etc/ntpsec/ntp.conf**
 ```
 server 127.127.22.0 minpoll 4 maxpoll 4
 fudge 127.127.22.0 refid PPS
@@ -84,9 +85,65 @@ connection: &ais1
               115200n81,local
 
 ```
+# Peripherie
+**Steuerchip PCF8574AT**  
+Der GPIO-Expander steuert folgende Funktionen:
 
+|Pin|Funktion|Beschreibung|
+|-|-|-|
+|P0|ADS-B Reset|low für reset des GNS5894T Receivers, float/high für Betrieb|
+|P1|ADS-B Modus|wenn J3 auf 2-3 gebrückt, steuerung des Modus (float/high=Text, low=Binär)
+|P2|GPS Reset|low für reset des GNS701 Receivers, float/high für Betrieb|
+|P3|GPS Enable|float/high um GNS701 zu aktivieren, low für Standby|
+|P4|AIS Reset|low für reset des GNS5851 Receivers, float/high für Betrieb|
+|P5|NC|Nicht verbunden|
+|P6|NC|Nicht verbunden|
+|P7|NC|Nicht verbunden|
+
+Die Adresse des GPIO-Expanders kann über den Dipschalter SW1 zwischen 0x40 und 0x4E (bzw. 0x41 und 0x4F) frei eingestellt werden.
+
+
+
+**AIS Modul GNS5851**  
+Das AIS-Modul verwendet 115200-8-N-1 für die serielle Kommunikation.  
+
+
+Es gibt folgende Befehle auf die reagiert wird, jeweils im NMEA 0183 nach Standard:
+Versionsabfrage, $PGNS,V*70<CR><LF>  
+Betriebsmodus, $PGNS,M,A*06, $PGNS,M,B*07 oder $PGNS,M,H*0D für nur Kanal *A*, nur *B* oder Kanal*H*opping.  
+Nach einem Reset wird die Version ausgegeben.  
+
+
+
+**ADS-B Modul GNS5894TAC**  
+DAS ADS-B Modul verwendet je nach Einstellung HULC oder Textprotokoll für die ADS-B Daten mit entsprechend 921600 oder 3000000 Baud, je 8 N 1.  
+Aufgrund der Datenrate ist die Verwendung von RTS/CTS Handshakes empfohlen.  
+
+Das Modul empfängt auf dem 2. UART Port die GPS Daten vom GNS701 und erwartet diese mit 9600 Baud und einer Position pro Sekunde. Benutzt wird dafür der 2. Ausgang des GPS-Empfängers.
+
+Es gibt folgende Befehle, je nach Protokoll:
+Versionsabfrage, #00<CR><LF>  
+Betriebsmodus abfragen, #43<CR><LF>  
+Betriebsmodus setzen, #43-XY<CR><LF> wobei X 1 für MLAT sowie 8 für RSSI ist und Y die Ausgabe steuert (0 Mode S off, 1 'reserved, do not use', 2 Output all Mode-S  & Mode-A/C data, default, 3 nur ADS-B und 4 nur ADS-B mit gültigem CRC)  
+Reset, #FF<CR><LF>  
+
+
+
+**GPS Modul GNS701**  
+Bei der Konfiguration des GPS-Empfängers zu beachten, dass die Daten des 2. Ausganges (TX1) an das ADS-B Modul gehen.  
+Standardmäßig werden 9600 Baud, 8-N-1 mit einer Position pro Sekunde  benutzt für beide Schnittstellen.
+
+
+
+Die Konfiguration basiert auf der MediaTek Befehlsreferenz. Entsprichend sollten die dortigen Befehle gehen  
+Testpaket: $PMTK000*32<CR><LF>  
+Versionsabfrage: $PMTK604*6D<CR><LF>  
+
+
+
+**Allgemein**  
 Die Module geben über die UART-Schnittstelle standardmäßig (lesbaren) Text aus. Es kann für ADS-B aber auch das HULC/Beast Binärformat anstelle von AVR benutzt werden.
-Alle üblichen Programme können die Daten entsprechend lesen, bis auf modesdeco2, welches nur funkrohdaten verarbeiten kann.  
+Alle üblichen Programme können die Daten entsprechend lesen, bis auf modesdeco2, welches nur Funkrohdaten verarbeiten kann.  
 
 Erfolgreich getestete feeder für AIS mit dem GNS5851:  
 + sxfeeder
@@ -98,7 +155,7 @@ Erfolgreich getestete feeder für ADS-B mit dem GNS5894T:
 + mlat-client (adsbexchange)
 + fr24feed (flightradar)
 
-Das GPS-Modul bietet GPS und PPS Daten für z.B. gpsd. Die Daten werden ebenso an den ADS-B Empfänger gegeben.  
+Das GPS-Modul bietet GPS und PPS Daten für z.B. gpsd.  
 
 
 In der Zielarchitektur verwende ich gpsd, ser2net und alle Feeder der jeweiligen Platformen.  
@@ -106,16 +163,19 @@ Dabei werden die AIS und ADS-B rohdaten via ser2net vom jeweiligen primärprogra
 ser2net hat sich als praktisch erwiesen, da es sich einfach debuggen lässt indem man z.b. per nc oder telnet verbinden kann.  
 gpsd und ntpd stellen dem System die genauen Zeitdaten bereit. Wer es richtig übertreiben will, kann das Design anpassen und einen RTK fähigen GPS Empfänger einbauen.
 
-Das HAT sollte HAT+ Spezifikationen erfüllen, dies ist aber noch nicht bestätigt, im Design ist testweise ein HAT+ Logos angebracht.
+Das HAT sollte HAT+ Spezifikationen erfüllen, dies ist aber noch nicht bestätigt, im Design ist testweise ein HAT+ Logo angebracht.
 
-Im aktuellen Design gegenüber dem referenzentwurf fehlt der Schlitz um an einen der CSI Ports zu kommen. Da dies wohl Bestandteil der HAT+ Hardwareforderungen ist, muss ich die Bauteile noch so schieben, dass auch dies gegeben ist.
+Im aktuellen Design gegenüber dem Referenzentwurf fehlt der Schlitz um an einen der CSI Ports zu kommen. Da dies ggf. Bestandteil der HAT+ Hardwareforderungen ist, muss dies noch korrigiert werden.  
+Diese Abweichung zeigt KiCAD entsprechend als Warnung an.  
+Des Weiteren werden die je 4 zusätzlichen Pads der AIS und ADS-B Module als zu eng für die Standardabstände geflaggt. Somit sollten anfangs 1+3+3 Warnungen bzw. Fehler auftreten, welche ignoriert werden können.
 
 # Linksammlung:
 
-+ https://datasheets.raspberrypi.com/hat/hat-plus-specification.pdf
-+ GPS: https://www.gns-electronics.de/product/gns-701/
-+ AIS: https://www.gns-electronics.de/product/gns-5851-ais-module/
-+ AIS Daisy-Chaining: https://www.gns-electronics.de/wp-content/uploads/2025/05/GNS5851_AppNote_2ch-Receiver-V0.9.pdf
-+ ADS-B: https://www.gns-electronics.de/product/gns-5894-highperformance-ads-b-modul/
-+ RPi HAT Template: https://github.com/devbisme/RPi_Hat_Template
-+ Prototypenfertiger: https://jlcpcb.com/
++ HAT+ Spezifikation: [https://datasheets.raspberrypi.com/hat/hat-plus-specification.pdf]
++ GPS: [https://www.gns-electronics.de/product/gns-701/]
++ AIS: [https://www.gns-electronics.de/product/gns-5851-ais-module/]
++ AIS Daisy-Chaining: [https://www.gns-electronics.de/wp-content/uploads/2025/05/GNS5851_AppNote_2ch-Receiver-V0.9.pdf]
++ ADS-B: [https://www.gns-electronics.de/product/gns-5894-highperformance-ads-b-modul/]
++ RPi HAT Template: [https://github.com/devbisme/RPi_Hat_Template]
++ Prototypenfertiger: [https://jlcpcb.com/]
++ PMTK Protokoll: [https://cdn.sparkfun.com/assets/f/0/9/1/c/PMTK_Protocol.pdf]
