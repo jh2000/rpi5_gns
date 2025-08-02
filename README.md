@@ -26,7 +26,8 @@ Die Designs sind noch ungeprüft und befinden sich zur Zeit in der Platinenferti
 Benutzt werden GNS701 als GPS-Empfänger mit PPS Ausgang, GNS5851 als AIS-Empfänger sowie GNS5894T als ADSB Empfänger.  
 Des Weiteren sind ein EEPROM für die HAT+ Erkennung, sowie ein I2C GPIO-Expander (PCF8574AT) vorhanden um die Reset/Steuereingänge anzusteuern.  
 Die Adresse des GPIO-Expanders kann über DIP-Schalter frei gewählt werden.  
-Das EEPROM (z.B. CAT24C128) hat eine fixe Adresse.  
+Das EEPROM zur automatschen HAT Erkennung (z.B. CAT24C128) hat Lötpads um den schreibschutz und die Adresse zu steuern. Standardmäßig ist 0x50. Gem. spezifikation würde auch 0x51 gehen.
+Sollte das HAT zusammen mit anderen Verwendet werden muss geprüft werden, dass es keinen Konflikt der Adresse oder Pins gibt.
 Aus Platz- und Komplexitätsgründen habe ich auf viele Bauteile verzichtet. Entsprechend fehlen Stütz-/Filterkapazitäten, Pegelbegrenzer usw.  
 Es lassen sich theoretisch 2 der AIS Empfänger Chips Daisy-Chainen um auf Kanal A und B zeitgleich zu lauschen. Mit mehr Durchkontaktierungen und den Signalteilern/Filtern/Verstärkern dürfte es aber auch noch drauf passen. 
 
@@ -37,6 +38,7 @@ Der GPS-Empfänger hängt an UART4, die PPS Funktion an GPIO26/Pin 37.
 
 # Konfiguration
 die HAT+ Erkennung hat zur Zeit keine funktionalen Benefits, daher müssen alle Einstellungen/Programme selbst getätigt/geladen werden.  
+Sobald die Hardware lauffähig getestet ist lassen sich zumindest die overlay Anteile und Pinsteuerungen so automatisieren.
 Ich verwende Debian 12.
 
 **/boot/config.txt**
@@ -104,7 +106,9 @@ Dabei werden die AIS und ADS-B rohdaten via ser2net vom jeweiligen primärprogra
 ser2net hat sich als praktisch erwiesen, da es sich einfach debuggen lässt indem man z.b. per nc oder telnet verbinden kann.  
 gpsd und ntpd stellen dem System die genauen Zeitdaten bereit. Wer es richtig übertreiben will, kann das Design anpassen und einen RTK fähigen GPS Empfänger einbauen.
 
-Das HAT sollte HAT+ Spezifikationen erfüllen, da dies aber nicht bestätigt ist, sind im Design keine HAT+ Beschriftungen/Logos angebracht.
+Das HAT sollte HAT+ Spezifikationen erfüllen, dies ist aber noch nicht bestätigt, im Design ist testweise ein HAT+ Logos angebracht.
+
+Im aktuellen Design gegenüber dem referenzentwurf fehlt der Schlitz um an einen der CSI Ports zu kommen. Da dies wohl Bestandteil der HAT+ Hardwareforderungen ist, muss ich die Bauteile noch so schieben, dass auch dies gegeben ist.
 
 # Linksammlung:
 
