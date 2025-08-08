@@ -1,5 +1,14 @@
 # RPi5 HAT+ for GNS AIS and ADS-B Modules
 
+# Aktuelle Fehler
+- Im aktuellen Layout ist ein Kreuzungsfehler, dadurch wird UART_Rx an Pin 10 vom GNS5851 mit F_ind verbunden.  
+Wird die Platine so gefertigt, muss die Verbindung aufgetrennt werden (direkt vor dem GNS5851, zum Glück sehr gut erreichbar) und manuell eine Brücke von Pin 5 zu R7 gelegt werden.  
+- Das Loch der GPS-Antenne ist scheinbar nicht richtig positioniert, es passt aber noch ausreichend gut.
+- die Adressierung des PCF8574 ist invertiert On=Low.
+- die Seitenpins der ADS-B und AIS Empfängers sind gem. Datenblatt angelegt, sie lassen sich aber nur per Heißluft anlöten, da man von der Seite nicht mit einem Lötkolben an die Pins kommt. Dazu sind sie sehr exakt zu positionieren. Am besten zuerst diese 4 anlöten und prüfen ob etwas gebrückt wurde.
+- am AIS-Empfänger sind zusätzliche Lötpunkte an den Gehäuseseiten auf der Platine, die sind aber überflüssig. Ebenso werden ohne Daisy-Chaining die 4 Seitenpins nicht benötigt und könnten auch weg bleiben.
+
+
 # Allgemein
 Schaltplan und Platinendesign mit KiCAD 9.0.  
 Im Repo zu finden sind die Projektdateien sowie footprints und symbole der Bauteile der Firma GNS.  
@@ -18,7 +27,9 @@ Anstelle eines RPi5 kann weitestgehend auch ein RPi4 verwendet werden. Es gibt a
 + \- nicht alle Feeder kompatibel
 
 # Disclaimer
-Die Designs sind noch ungeprüft und befinden sich zur Zeit in der Platinenfertigung. Es ist daher ein starker 'work in progress' ohne validierte Layouts.  
+~~Die Designs sind noch ungeprüft und befinden sich zur Zeit in der Platinenfertigung. Es ist daher ein starker 'work in progress' ohne validierte Layouts.~~  
+Die Designs habe ich jeweils einmal fertigen lassen. Dabei sind die oben genannten kleineren Fehler aufgefallen. Grundsätzlich funktionieren die Platinen im aktuellen Zustand.  
+
 **Ich bin eine Privatperson und stehe nicht mit Firma GNS, rpi, jlcpcb oder Anderen in kommerzieller Verbindung**  
 **Für Schäden übernehme ich keine Haftung**  
 
@@ -29,10 +40,10 @@ Die Adresse des GPIO-Expanders kann über DIP-Schalter frei gewählt werden.
 Das EEPROM zur automatschen HAT Erkennung (z.B. CAT24C128) hat Lötpads um den schreibschutz und die Adresse zu steuern. Standardmäßig ist 0x50. Gem. spezifikation würde auch 0x51 gehen.
 Sollte das HAT zusammen mit anderen Verwendet werden muss geprüft werden, dass es keinen Konflikt der Adresse oder Pins gibt.
 Aus Platz- und Komplexitätsgründen habe ich auf viele Bauteile verzichtet. Entsprechend fehlen Stütz-/Filterkapazitäten, Pegelbegrenzer usw.  
-Es lassen sich theoretisch 2 der AIS Empfänger Chips Daisy-Chainen um auf Kanal A und B zeitgleich zu lauschen. Mit mehr Durchkontaktierungen und den Signalteilern/Filtern/Verstärkern dürfte es aber auch noch drauf passen. 
+Es lassen sich theoretisch 2 der AIS Empfänger Chips Daisy-Chainen um auf Kanal A und B zeitgleich zu lauschen. Mit mehr Durchkontaktierungen und den Signalteilern/Filtern/Verstärkern gem. Herstellervorgabe könnte es noch knapp auf die Platine drauf passen. 
 
 # Verdrahtung
-Der ADSB-Empfänger hängt an UART1. Hier werden die Flusssteuerung über CTS/RTS (GPIO 2-3) mit angesteuert.  
+Der ADSB-Empfänger hängt an UART0. Hier werden die Flusssteuerung über CTS/RTS (GPIO 16/17, Pin 36/11) mit angesteuert.  
 Der AIS-Empfänger hängt an UART3.  
 Der GPS-Empfänger hängt an UART4, die PPS Funktion an GPIO26/Pin 37.  
 
@@ -44,10 +55,11 @@ Ich verwende Debian 12.
 **/boot/config.txt**
 ```
 dtoverlay=pps-gpio,gpiopin=26  
-dtoverlay=uart1-pi5,ctsrts  
-dtoverlay=uart4-pi5  
-dtoverlay=uart5-pi5
-dtoverlay=pcf857x,addr=40
+dtoverlay=uart0-pi5,ctsrts  
+dtoverlay=uart3-pi5  
+dtoverlay=uart4-pi5
+dtparam=i2c1=on
+dtoverlay=pcf857x,addr=38 # Wohl obsolet
 ```
 **/etc/default/gpsd**
 ```
@@ -68,21 +80,26 @@ fudge 127.127.28.0 time1 +0.130 # coarse offset due to the UART delay
 ```
 **/etc/ser2net.yaml**
 ```
-connection: &adsb1
+connection: &adsb01
     accepter: tcp,4000
     enable: on
-    connector: serialdev,
-      /dev/ttyAMA5,
-              921600n81,local
-
-connection: &ais1
+    options:
+      kickolduser: true
+    connector: serialdev,/dev/ttyAMA0,3000000n81,local rtscts # Bei Textmodus
+    #    921600n81,local rtscts Bei HULC
+connection: &ais01
     accepter: tcp,2001
     enable: on
     options:
       kickolduser: true
-    connector: serialdev,
-              /dev/ttyS0,
-              115200n81,local
+    connector: serialdev,/dev/ttyAMA3,115200n81,local
+connection: &gps01
+    accepter: tcp,3002
+    enable: on
+    options:
+      kickolduser: true
+    connector: serialdev,/dev/ttyAMA4,9600n81,local
+
 
 ```
 # Peripherie
@@ -100,15 +117,18 @@ Der GPIO-Expander steuert folgende Funktionen:
 |P6|NC|Nicht verbunden|
 |P7|NC|Nicht verbunden|
 
-Die Adresse des GPIO-Expanders kann über den Dipschalter SW1 zwischen 0x40 und 0x4E (bzw. 0x41 und 0x4F) frei eingestellt werden.
+Die Adresse des GPIO-Expanders kann über den Dipschalter SW1 zwischen 0x38 und 0x3F frei eingestellt werden.  
+Zu beachten ist, dass die DIP-Switche gegen Masse schalten, also On = Masse. Entsprechend ist alle auf On = 0x38 und alle auf Off = 0x3F!
 
 
 
 **AIS Modul GNS5851**  
 Das AIS-Modul verwendet 115200-8-N-1 für die serielle Kommunikation.  
+Beim Power on oder sobald das Modul resetet wird, wird die Version ausgeben:  
+$PGNS,0,V,GNS5851,23.20.1,1.0-1,H,S01*08
 
 
-Es gibt folgende Befehle auf die reagiert wird, jeweils im NMEA 0183 nach Standard:
+Es gibt folgende Befehle auf die reagiert wird, jeweils im NMEA 0183 Standard:
 Versionsabfrage, $PGNS,V*70<CR><LF>  
 Betriebsmodus, $PGNS,M,A*06, $PGNS,M,B*07 oder $PGNS,M,H*0D für nur Kanal *A*, nur *B* oder Kanal*H*opping.  
 Nach einem Reset wird die Version ausgegeben.  
@@ -118,6 +138,8 @@ Nach einem Reset wird die Version ausgegeben.
 **ADS-B Modul GNS5894TAC**  
 DAS ADS-B Modul verwendet je nach Einstellung HULC oder Textprotokoll für die ADS-B Daten mit entsprechend 921600 oder 3000000 Baud, je 8 N 1.  
 Aufgrund der Datenrate ist die Verwendung von RTS/CTS Handshakes empfohlen.  
+Im HULC Modus wird sekündlich ein Datenpaket übertragen, im Textmodus dagegen gibt es abseits empfangener Signale keinerlei Status, auch nicht beim Reset/Einschalten.  
+Die Funktionsfähigkeit kann hier getestet werden indem "#00" gesendet wird.
 
 Das Modul empfängt auf dem 2. UART Port die GPS Daten vom GNS701 und erwartet diese mit 9600 Baud und einer Position pro Sekunde. Benutzt wird dafür der 2. Ausgang des GPS-Empfängers.
 
@@ -131,7 +153,8 @@ Reset, #FF<CR><LF>
 
 **GPS Modul GNS701**  
 Bei der Konfiguration des GPS-Empfängers zu beachten, dass die Daten des 2. Ausganges (TX1) an das ADS-B Modul gehen.  
-Standardmäßig werden 9600 Baud, 8-N-1 mit einer Position pro Sekunde  benutzt für beide Schnittstellen.
+Standardmäßig werden 9600 Baud, 8-N-1 mit einer Position pro Sekunde  benutzt für beide Schnittstellen.  
+Solange das Modul im Reset oder Standby zustand ist, bleibt die 3D-Fix LED aus. Solange das Modul ansonsten im Normalbetrieb ist, sollte mindestens einmal pro Sekunde etwas im Terminal zu finden sein, im Takt mit dem Blinken der 3D-Fix LED.
 
 
 
