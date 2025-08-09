@@ -2,8 +2,9 @@
 
 # Aktuelle Fehler
 - Im aktuellen Layout ist ein Kreuzungsfehler, dadurch wird UART_Rx an Pin 10 vom GNS5851 mit F_ind verbunden.  
-Wird die Platine so gefertigt, muss die Verbindung aufgetrennt werden (direkt vor dem GNS5851, zum Glück sehr gut erreichbar) und manuell eine Brücke von Pin 5 zu R7 gelegt werden.  
-- Das Loch der GPS-Antenne ist scheinbar nicht richtig positioniert, es passt aber noch ausreichend gut.
+Wird die Platine so gefertigt, muss die Verbindung aufgetrennt werden (direkt vor dem GNS5851, zum Glück sehr gut erreichbar) und manuell eine Brücke von Pin 5 zu R7 gelegt werden.
+- Der RX-Pin vom AIS-Modul ist mit GPIO 7 anstelle 8 verbunden, daher ist keine Kommunikation vom RPi zum AIS-Modul möglich. Ein Workaround ist, die nebeneinander liegenden Pins GPIO 7 und 8 (Pins 24 und 26) zu verbinden.
+- Das Loch der GPS-Antenne ist scheinbar nicht richtig positioniert, es passt aber noch ausreichend gut. Vermutlich sind die Abstandsmaße von der falschen Seite.
 - die Adressierung des PCF8574 ist invertiert On=Low.
 - die Seitenpins der ADS-B und AIS Empfängers sind gem. Datenblatt angelegt, sie lassen sich aber nur per Heißluft anlöten, da man von der Seite nicht mit einem Lötkolben an die Pins kommt. Dazu sind sie sehr exakt zu positionieren. Am besten zuerst diese 4 anlöten und prüfen ob etwas gebrückt wurde.
 - am AIS-Empfänger sind zusätzliche Lötpunkte an den Gehäuseseiten auf der Platine, die sind aber überflüssig. Ebenso werden ohne Daisy-Chaining die 4 Seitenpins nicht benötigt und könnten auch weg bleiben.
